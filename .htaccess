@@ -1,0 +1,5 @@
+# disbale options
+Options -Indexes
+
+# rdir to login
+DirectoryIndex login.php index.php
