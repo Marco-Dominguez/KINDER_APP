@@ -37,15 +37,18 @@ $currentUserRole = $_SESSION['userRole'] ?? '';
         </div>
 
         <ul class="menu-list">
-            <?php if ($currentUserRole === 'admin'): ?>
+            <?php if ($currentUserRole === 'Admin'): ?>
                 <li><a href="usuarios.php">Gestión de Usuarios</a></li>
                 <li><a href="personal.php">Gestión de Personal</a></li>
                 <li><a href="grupos.php">Gestión de Grupos</a></li>
                 <li><a href="alumnos.php">Gestión de Alumnos</a></li>
             
-            <?php elseif ($currentUserRole === 'docente'): ?>
+            <?php elseif ($currentUserRole === 'Docente'): ?>
                 <li><a href="grupos.php">Mis Grupos</a></li>
                 <li><a href="alumnos.php">Mis Alumnos</a></li>
+
+            <?php elseif ($currentUserRole === 'Alumno'): ?>
+                <li><a href="grupos.php">Mi Grupo</a></li>
             <?php endif; ?>
         </ul>
 

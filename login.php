@@ -17,19 +17,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $inputPassword = $_POST['password'] ?? '';
 
     // get user data
-    $authQuery = $connection->prepare("SELECT id_usu, password_usu, rol FROM usuarios WHERE usuario_usu = ?");
+    $authQuery = $connection->prepare(
+        "SELECT u.id_usu, u.usuario_usu, u.password_usu, r.role_name
+        FROM usuarios u
+        JOIN roles r ON u.role_id = r.role_id
+        WHERE u.usuario_usu = ?");
     $authQuery->execute([$inputUsername]);
     $userData = $authQuery->fetch(PDO::FETCH_ASSOC);
 
-    // validate credentiasls
     if ($userData && password_verify($inputPassword, $userData['password_usu'])) {
-        
-        // set user variables
         $_SESSION['loggedIn'] = true;
         $_SESSION['userId']   = $userData['id_usu'];
-        $_SESSION['userRole'] = $userData['rol'];
-
-        // redirect to index
+        $_SESSION['username'] = $userData['usuario_usu'];
+        $_SESSION['userRole'] = $userData['role_name'];
         header("Location: index.php");
         exit();
     } else {

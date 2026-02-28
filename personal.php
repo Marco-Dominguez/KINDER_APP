@@ -11,6 +11,7 @@ if (!isset($_SESSION['loggedIn']) || $_SESSION['loggedIn'] !== true) {
 ob_start();
 require 'config.php';
 
+$currentUserRole = $_SESSION['userRole'] ?? '';
 $actionFeedback = "";
 
 // load info in the form if edit

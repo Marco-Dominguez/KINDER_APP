@@ -11,6 +11,7 @@ if (!isset($_SESSION['loggedIn']) || $_SESSION['loggedIn'] !== true) {
 ob_start();
 require 'config.php';
 
+$currentUserRole = $_SESSION['userRole'] ?? '';
 $actionFeedback = "";
 
 // load info in the form if edit
@@ -27,9 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formAction = $_POST['formAction'] ?? '';
 
     if ($formAction === 'create') {
-        $selectedGroupId = $_POST['groupId'];
-        $studentName     = $_POST['studentName'];
-        $studentLastName = $_POST['studentLastName'];
+        $selectedGroupId  = $_POST['groupId'];
+        $selectedUserId   = $_POST['userId'] ?? null;
+        $studentName      = $_POST['studentName'];
+        $studentLastName  = $_POST['studentLastName'];
 
         // id_gpo exist validation
         $validateGroupQuery = $connection->prepare("SELECT COUNT(*) FROM grupo WHERE id_gpo = ?");
@@ -38,8 +40,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($groupExists) {
             // insert student
-            $insertQuery = $connection->prepare("INSERT INTO alumnos (id_gpo, nombre_alu, apellidos_alu) VALUES (?, ?, ?)");
-            if ($insertQuery->execute([$selectedGroupId, $studentName, $studentLastName])) {
+            $insertQuery = $connection->prepare("INSERT INTO alumnos (id_gpo, id_usu, nombre_alu, apellidos_alu) VALUES (?, ?, ?, ?)");
+            if ($insertQuery->execute([$selectedGroupId, $selectedUserId ?: null, $studentName, $studentLastName])) {
                 header("Location: alumnos.php");
                 exit();
             } else {
@@ -51,11 +53,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($formAction === 'update') {
         $targetId        = (int)$_POST['targetStudentId'];
         $selectedGroupId = $_POST['groupId'];
+        $selectedUserId  = $_POST['userId'] ?? null;
         $studentName     = $_POST['studentName'];
         $studentLastName = $_POST['studentLastName'];
 
-        $updateQuery = $connection->prepare("UPDATE alumnos SET id_gpo = ?, nombre_alu = ?, apellidos_alu = ? WHERE id_alu = ?");
-        if ($updateQuery->execute([$selectedGroupId, $studentName, $studentLastName, $targetId])) {
+        $updateQuery = $connection->prepare("UPDATE alumnos SET id_gpo = ?, id_usu = ?, nombre_alu = ?, apellidos_alu = ? WHERE id_alu = ?");
+        if ($updateQuery->execute([$selectedGroupId, $selectedUserId ?: null, $studentName, $studentLastName, $targetId])) {
             header("Location: alumnos.php");
             exit();
         } else {
@@ -79,12 +82,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $fetchGroupsQuery = $connection->query("SELECT id_gpo, grupo_gpo FROM grupo");
 $availableGroups  = $fetchGroupsQuery->fetchAll(PDO::FETCH_ASSOC);
 
+// get students
+$fetchAlumnoUsersQuery = $connection->query(
+    "SELECT u.id_usu, u.usuario_usu FROM usuarios u
+    JOIN roles r ON u.role_id = r.role_id
+    WHERE r.role_name = 'Alumno'");
+$alumnoUsers = $fetchAlumnoUsersQuery->fetchAll(PDO::FETCH_ASSOC);
+
 // get students for table
-$fetchStudentsQuery = $connection->query("
-    SELECT a.id_alu, a.id_gpo, g.grupo_gpo, a.nombre_alu, a.apellidos_alu 
-    FROM alumnos a 
-    JOIN grupo g ON a.id_gpo = g.id_gpo
-");
+if ($currentUserRole === 'Alumno') {
+    $currentUserId = $_SESSION['userId'];
+    $fetchStudentsQuery = $connection->prepare(
+        "SELECT a.id_alu, a.id_gpo, a.id_usu, g.grupo_gpo, a.nombre_alu, a.apellidos_alu
+        FROM alumnos a JOIN grupo g ON a.id_gpo = g.id_gpo
+        WHERE a.id_usu = ?");
+    $fetchStudentsQuery->execute([$currentUserId]);
+} else {
+    $fetchStudentsQuery = $connection->query(
+        "SELECT a.id_alu, a.id_gpo, a.id_usu, g.grupo_gpo, a.nombre_alu, a.apellidos_alu
+        FROM alumnos a JOIN grupo g ON a.id_gpo = g.id_gpo");
+}
 $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -111,11 +128,23 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
         <p class="feedback"><?= htmlspecialchars($actionFeedback) ?></p>
     <?php endif; ?>
 
+    <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
     <form action="alumnos.php" method="POST">
         <input type="hidden" name="formAction" value="<?= $editingStudent ? 'update' : 'create' ?>">
         <?php if ($editingStudent): ?>
             <input type="hidden" name="targetStudentId" value="<?= htmlspecialchars($editingStudent['id_alu']) ?>">
         <?php endif; ?>
+
+        <label>Vincular a Cuenta de Usuario (Alumno):</label><br>
+        <select name="userId">
+            <option value="">-- Sin vincular --</option>
+            <?php foreach ($alumnoUsers as $alumnoUser): ?>
+                <option value="<?= htmlspecialchars($alumnoUser['id_usu']) ?>"
+                    <?= ($editingStudent && $editingStudent['id_usu'] == $alumnoUser['id_usu']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($alumnoUser['usuario_usu']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select><br><br>
 
         <label>Asignar a Grupo:</label><br>
         <select name="groupId" required>
@@ -139,10 +168,10 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
             <a href="alumnos.php" style="margin-left:10px;">Cancelar</a>
         <?php endif; ?>
     </form>
-
     <hr>
+    <?php endif; ?>
 
-    <h2>Lista de Alumnos</h2>
+    <h2><?= $currentUserRole === 'Alumno' ? 'Mis Datos' : 'Lista de Alumnos' ?></h2>
     <table>
         <thead>
             <tr>
@@ -150,7 +179,9 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
                 <th>Grupo</th>
                 <th>Nombre</th>
                 <th>Apellidos</th>
+                <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
                 <th>Acciones</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -160,6 +191,7 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
                 <td><?= htmlspecialchars($studentData['grupo_gpo']) ?></td>
                 <td><?= htmlspecialchars($studentData['nombre_alu']) ?></td>
                 <td><?= htmlspecialchars($studentData['apellidos_alu']) ?></td>
+                <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
                 <td>
                     <a href="alumnos.php?edit=<?= htmlspecialchars($studentData['id_alu']) ?>" style="display:inline-block;margin-bottom:4px;padding:4px 8px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;font-size:0.85em;">Editar</a><br>
                     <form action="alumnos.php" method="POST" onsubmit="return confirm('¿Eliminar este alumno?');">
@@ -168,6 +200,7 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
                         <button type="submit">Eliminar</button>
                     </form>
                 </td>
+                <?php endif; ?>
             </tr>
             <?php endforeach; ?>
         </tbody>

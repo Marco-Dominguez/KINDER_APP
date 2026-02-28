@@ -17,7 +17,10 @@ $actionFeedback = "";
 $editingUser = null;
 if (isset($_GET['edit'])) {
     $editId = (int)$_GET['edit'];
-    $editQuery = $connection->prepare("SELECT id_usu, usuario_usu, rol FROM usuarios WHERE id_usu = ?");
+    $editQuery = $connection->prepare(
+        "SELECT u.id_usu, u.usuario_usu, u.role_id, r.role_name
+        FROM usuarios u JOIN roles r ON u.role_id = r.role_id
+        WHERE u.id_usu = ?");
     $editQuery->execute([$editId]);
     $editingUser = $editQuery->fetch(PDO::FETCH_ASSOC);
 }
@@ -40,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // hash password and insert new user
             $hashedPassword = password_hash($inputPassword, PASSWORD_BCRYPT);
-            $insertQuery = $connection->prepare("INSERT INTO usuarios (usuario_usu, password_usu, rol) VALUES (?, ?, ?)");
+            $insertQuery = $connection->prepare("INSERT INTO usuarios (usuario_usu, password_usu, role_id) VALUES (?, ?, ?)");
             if ($insertQuery->execute([$inputUsername, $hashedPassword, $inputRole])) {
                 header("Location: usuarios.php");
                 exit();
@@ -53,7 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $inputUsername = $_POST['username'];
         $inputRole     = $_POST['role'];
 
-        $updateQuery = $connection->prepare("UPDATE usuarios SET usuario_usu = ?, rol = ? WHERE id_usu = ?");
+        $updateQuery = $connection->prepare("UPDATE usuarios SET usuario_usu = ?, role_id = ? WHERE id_usu = ?");
         if ($updateQuery->execute([$inputUsername, $inputRole, $targetId])) {
             header("Location: usuarios.php");
             exit();
@@ -79,8 +82,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // get users for table display
-$fetchUsersQuery = $connection->query("SELECT id_usu, usuario_usu, password_usu, rol FROM usuarios");
-$currentUsers    = $fetchUsersQuery->fetchAll(PDO::FETCH_ASSOC);
+$fetchUsersQuery = $connection->query(
+    "SELECT u.id_usu, u.usuario_usu, r.role_name
+    FROM usuarios u JOIN roles r ON u.role_id = r.role_id");
+$currentUsers = $fetchUsersQuery->fetchAll(PDO::FETCH_ASSOC);
+
+// get roles for dropdown
+$fetchRolesQuery = $connection->query("SELECT role_id, role_name FROM roles");
+$availableRoles  = $fetchRolesQuery->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -123,8 +132,12 @@ $currentUsers    = $fetchUsersQuery->fetchAll(PDO::FETCH_ASSOC);
         <label>Rol del Sistema:</label><br>
         <select name="role" required>
             <option value="">-- Seleccionar Rol --</option>
-            <option value="admin" <?= ($editingUser && $editingUser['rol'] === 'admin') ? 'selected' : '' ?>>Administrador (admin)</option>
-            <option value="docente" <?= ($editingUser && $editingUser['rol'] === 'docente') ? 'selected' : '' ?>>Docente (docente)</option>
+            <?php foreach ($availableRoles as $roleItem): ?>
+                <option value="<?= htmlspecialchars($roleItem['role_id']) ?>"
+                    <?= ($editingUser && $editingUser['role_id'] == $roleItem['role_id']) ? 'selected' : '' ?>>
+                    <?= htmlspecialchars($roleItem['role_name']) ?>
+                </option>
+            <?php endforeach; ?>
         </select><br><br>
 
         <button type="submit"><?= $editingUser ? 'Actualizar Usuario' : 'Guardar Usuario' ?></button>
@@ -141,7 +154,6 @@ $currentUsers    = $fetchUsersQuery->fetchAll(PDO::FETCH_ASSOC);
             <tr>
                 <th>ID</th>
                 <th>Usuario</th>
-                <th>Contraseña</th>
                 <th>Rol</th>
                 <th>Acciones</th>
             </tr>
@@ -151,8 +163,7 @@ $currentUsers    = $fetchUsersQuery->fetchAll(PDO::FETCH_ASSOC);
             <tr>
                 <td><?= htmlspecialchars($userData['id_usu']) ?></td>
                 <td><?= htmlspecialchars($userData['usuario_usu']) ?></td>
-                <td><?= htmlspecialchars($userData['password_usu']) ?></td>
-                <td><?= htmlspecialchars($userData['rol']) ?></td>
+                <td><?= htmlspecialchars($userData['role_name']) ?></td>
                 <td>
                     <a href="usuarios.php?edit=<?= htmlspecialchars($userData['id_usu']) ?>" style="display:inline-block;margin-bottom:4px;padding:4px 8px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;font-size:0.85em;">Editar</a><br>
                     <form action="usuarios.php" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este usuario?');">

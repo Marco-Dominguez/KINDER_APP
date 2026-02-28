@@ -11,6 +11,7 @@ if (!isset($_SESSION['loggedIn']) || $_SESSION['loggedIn'] !== true) {
 ob_start();
 require 'config.php';
 
+$currentUserRole = $_SESSION['userRole'] ?? '';
 $actionFeedback = "";
 
 // load info in the form if edit
@@ -82,11 +83,21 @@ $fetchUsersQuery = $connection->query("SELECT id_usu, usuario_usu FROM usuarios"
 $availableUsers  = $fetchUsersQuery->fetchAll(PDO::FETCH_ASSOC);
 
 // get groups for table
-$fetchGroupsQuery = $connection->query("
-    SELECT g.id_gpo, g.id_usu, u.usuario_usu, g.grupo_gpo 
-    FROM grupo g 
-    JOIN usuarios u ON g.id_usu = u.id_usu
-");
+if ($currentUserRole === 'Alumno') {
+    $currentUserId = $_SESSION['userId'];
+    $fetchGroupsQuery = $connection->prepare(
+        "SELECT g.id_gpo, g.id_usu, u.usuario_usu, g.grupo_gpo
+        FROM grupo g
+        JOIN usuarios u ON g.id_usu = u.id_usu
+        JOIN alumnos a ON a.id_gpo = g.id_gpo
+        WHERE a.id_usu = ?");
+    $fetchGroupsQuery->execute([$currentUserId]);
+} else {
+    $fetchGroupsQuery = $connection->query(
+        "SELECT g.id_gpo, g.id_usu, u.usuario_usu, g.grupo_gpo
+        FROM grupo g
+        JOIN usuarios u ON g.id_usu = u.id_usu");
+}
 $currentGroups = $fetchGroupsQuery->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -107,6 +118,7 @@ $currentGroups = $fetchGroupsQuery->fetchAll(PDO::FETCH_ASSOC);
 <body>
     <a href="index.php" class="nav-link">&larr; Volver al Menú Principal</a>
     
+    <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
     <h2><?= $editingGroup ? 'Editar Grupo' : 'Crear Nuevo Grupo' ?></h2>
     
     <?php if ($actionFeedback): ?>
@@ -138,6 +150,7 @@ $currentGroups = $fetchGroupsQuery->fetchAll(PDO::FETCH_ASSOC);
             <a href="grupos.php" style="margin-left:10px;">Cancelar</a>
         <?php endif; ?>
     </form>
+    <?php endif; ?>
 
     <hr>
 
@@ -148,7 +161,9 @@ $currentGroups = $fetchGroupsQuery->fetchAll(PDO::FETCH_ASSOC);
                 <th>ID Grupo</th>
                 <th>Docente Asignado</th>
                 <th>Nombre del Grupo</th>
+                <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
                 <th>Acciones</th>
+                <?php endif; ?>
             </tr>
         </thead>
         <tbody>
@@ -157,6 +172,7 @@ $currentGroups = $fetchGroupsQuery->fetchAll(PDO::FETCH_ASSOC);
                 <td><?= htmlspecialchars($groupData['id_gpo']) ?></td>
                 <td><?= htmlspecialchars($groupData['usuario_usu']) ?></td>
                 <td><?= htmlspecialchars($groupData['grupo_gpo']) ?></td>
+                <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
                 <td>
                     <a href="grupos.php?edit=<?= htmlspecialchars($groupData['id_gpo']) ?>" style="display:inline-block;margin-bottom:4px;padding:4px 8px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;font-size:0.85em;">Editar</a><br>
                     <form action="grupos.php" method="POST" onsubmit="return confirm('¿Eliminar este grupo?');">
@@ -165,6 +181,7 @@ $currentGroups = $fetchGroupsQuery->fetchAll(PDO::FETCH_ASSOC);
                         <button type="submit">Eliminar</button>
                     </form>
                 </td>
+                <?php endif; ?>
             </tr>
             <?php endforeach; ?>
         </tbody>
