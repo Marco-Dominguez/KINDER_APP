@@ -111,17 +111,37 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
     <meta charset="UTF-8">
     <title>Gestión de Alumnos</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .feedback { color: red; font-weight: bold; }
-        .nav-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #0066cc; }
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: sans-serif; background-color: #f4f4f9; margin: 0; padding: 30px; }
+        h2 { color: #333; margin-top: 0; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 25px; }
+        label { font-size: 0.9em; font-weight: bold; color: #444; }
+        input[type="text"], input[type="email"], input[type="tel"], select {
+            width: 100%; padding: 10px; margin: 6px 0 16px 0; border: 1px solid #ccc;
+            border-radius: 4px; font-size: 0.95em;
+        }
+        input:focus, select:focus { outline: none; border-color: #0066cc; box-shadow: 0 0 0 2px rgba(0,102,204,0.15); }
+        button[type="submit"] { padding: 10px 20px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.95em; }
+        button[type="submit"]:hover { background-color: #0055aa; }
+        .btn-danger { padding: 6px 12px; background-color: #cc0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+        .btn-danger:hover { background-color: #aa0000; }
+        .btn-edit { display: inline-block; padding: 6px 12px; background-color: #0066cc; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+        .btn-edit:hover { background-color: #0055aa; }
+        .cancel-link { margin-left: 10px; color: #0066cc; font-size: 0.9em; }
+        .feedback { color: #cc0000; font-weight: bold; margin-bottom: 12px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.95em; }
+        th { background-color: #0066cc; color: white; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #eef4ff; }
+        .nav-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #0066cc; font-weight: bold; font-size: 0.9em; }
+        .nav-link:hover { text-decoration: underline; }
+        .action-cell { display: flex; gap: 6px; align-items: center; }
     </style>
 </head>
 <body>
     <a href="index.php" class="nav-link">&larr; Volver al Menú Principal</a>
-    
+
     <h2><?= $editingStudent ? 'Editar Alumno' : 'Registrar Nuevo Alumno' ?></h2>
     
     <?php if ($actionFeedback): ?>
@@ -129,6 +149,7 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
     <?php endif; ?>
 
     <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
+    <div class="card">
     <form action="alumnos.php" method="POST">
         <input type="hidden" name="formAction" value="<?= $editingStudent ? 'update' : 'create' ?>">
         <?php if ($editingStudent): ?>
@@ -144,7 +165,7 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
                     <?= htmlspecialchars($alumnoUser['usuario_usu']) ?>
                 </option>
             <?php endforeach; ?>
-        </select><br><br>
+        </select><br>
 
         <label>Asignar a Grupo:</label><br>
         <select name="groupId" required>
@@ -155,22 +176,23 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
                     <?= htmlspecialchars($groupData['grupo_gpo']) ?>
                 </option>
             <?php endforeach; ?>
-        </select><br><br>
+        </select><br>
 
         <label>Nombre(s):</label><br>
-        <input type="text" name="studentName" value="<?= $editingStudent ? htmlspecialchars($editingStudent['nombre_alu']) : '' ?>" required><br><br>
+        <input type="text" name="studentName" value="<?= $editingStudent ? htmlspecialchars($editingStudent['nombre_alu']) : '' ?>" required><br>
 
         <label>Apellidos:</label><br>
-        <input type="text" name="studentLastName" value="<?= $editingStudent ? htmlspecialchars($editingStudent['apellidos_alu']) : '' ?>" required><br><br>
+        <input type="text" name="studentLastName" value="<?= $editingStudent ? htmlspecialchars($editingStudent['apellidos_alu']) : '' ?>" required><br>
 
         <button type="submit"><?= $editingStudent ? 'Actualizar Alumno' : 'Guardar Alumno' ?></button>
         <?php if ($editingStudent): ?>
-            <a href="alumnos.php" style="margin-left:10px;">Cancelar</a>
+            <a href="alumnos.php" class="cancel-link">Cancelar</a>
         <?php endif; ?>
     </form>
-    <hr>
+    </div>
     <?php endif; ?>
 
+    <div class="card">
     <h2><?= $currentUserRole === 'Alumno' ? 'Mis Datos' : 'Lista de Alumnos' ?></h2>
     <table>
         <thead>
@@ -192,12 +214,12 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
                 <td><?= htmlspecialchars($studentData['nombre_alu']) ?></td>
                 <td><?= htmlspecialchars($studentData['apellidos_alu']) ?></td>
                 <?php if (in_array($currentUserRole, ['Admin', 'Docente'])): ?>
-                <td>
-                    <a href="alumnos.php?edit=<?= htmlspecialchars($studentData['id_alu']) ?>" style="display:inline-block;margin-bottom:4px;padding:4px 8px;background:#0066cc;color:white;text-decoration:none;border-radius:4px;font-size:0.85em;">Editar</a><br>
+                <td class="action-cell">
+                    <a href="alumnos.php?edit=<?= htmlspecialchars($studentData['id_alu']) ?>" class="btn-edit">Editar</a>
                     <form action="alumnos.php" method="POST" onsubmit="return confirm('¿Eliminar este alumno?');">
                         <input type="hidden" name="formAction" value="delete">
                         <input type="hidden" name="targetStudentId" value="<?= htmlspecialchars($studentData['id_alu']) ?>">
-                        <button type="submit">Eliminar</button>
+                        <button type="submit" class="btn-danger">Eliminar</button>
                     </form>
                 </td>
                 <?php endif; ?>
@@ -205,6 +227,7 @@ $currentStudents = $fetchStudentsQuery->fetchAll(PDO::FETCH_ASSOC);
             <?php endforeach; ?>
         </tbody>
     </table>
+    </div>
 </body>
 </html>
 <?php ob_end_flush(); ?>

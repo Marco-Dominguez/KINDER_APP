@@ -17,8 +17,8 @@ $currentUserRole = $_SESSION['userRole'] ?? '';
     <meta charset="UTF-8">
     <title>Panel Principal</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .menu-container { border: 1px solid #ccc; padding: 20px; width: 350px; border-radius: 8px; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f4f4f9; margin: 0; }
+        .menu-container { background: white; padding: 30px; width: 350px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         .menu-list { list-style-type: none; padding: 0; }
         .menu-list li { margin-bottom: 15px; }
         .menu-list a { text-decoration: none; color: #0066cc; font-weight: bold; display: block; padding: 10px; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; }
